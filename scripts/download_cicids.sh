@@ -16,10 +16,7 @@
 #     # put kaggle.json in ~/.kaggle/  (from Kaggle > Account > Create API Token)
 #     kaggle datasets download -d cicdataset/cicids2017 -p data/raw --unzip
 #
-# Until then, you can develop & demo against the realistic sample:
-#     python scripts/make_sample_cicids.py
+# Once the *.csv files are in data/raw/, run:  make pipeline
 set -euo pipefail
-echo "See the comments in this script — CICIDS 2017 requires a manual form/download."
-echo "For now, generating the realistic sample so you're unblocked:"
-cd "$(dirname "$0")/.."
-python scripts/make_sample_cicids.py
+echo "CICIDS 2017 requires a manual form/download — see the comments in this script."
+echo "Drop the unzipped *.csv files into data/raw/, then run: make pipeline"

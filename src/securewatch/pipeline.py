@@ -1,11 +1,12 @@
-"""End-to-end pipeline orchestrator.
+"""End-to-end pipeline orchestrator (network layer).
 
-    python -m securewatch.pipeline            # full run (needs CICIDS in data/raw)
-    python -m securewatch.pipeline --docs-only  # skip network (no download needed)
+    python -m securewatch.pipeline    # clean + train + score real CICIDS, build alerts
+
+The document layer is now a LIVE Google Drive feed handled inside the dashboard
+(see securewatch.ingest.gdrive + the dashboard's "Live Drive" tab), so it is no
+longer part of this batch run.
 """
 from __future__ import annotations
-
-import argparse
 
 import pandas as pd
 
@@ -14,8 +15,9 @@ from securewatch import service
 
 
 def build_alerts() -> pd.DataFrame:
-    """Correlate both layers into one severity-ranked alert feed (delegates to
-    securewatch.service so the CLI and the dashboard share identical logic)."""
+    """Build the severity-ranked alert feed from the scored network layer
+    (delegates to securewatch.service so the CLI and dashboard share logic).
+    If a live Drive session has written document_scored.parquet, it's folded in."""
     net_path = C.processed / "network_scored.parquet"
     doc_path = C.processed / "document_scored.parquet"
     net = pd.read_parquet(net_path) if net_path.exists() else None
@@ -28,21 +30,13 @@ def build_alerts() -> pd.DataFrame:
     return df
 
 
-def run(docs_only: bool = False) -> None:
-    from securewatch.ingest import generate_doc_logs
-    from securewatch.detect import doc_rules
+def run() -> None:
+    print("== Network layer (CICIDS 2017) ==")
+    from securewatch.preprocess import clean_network
+    from securewatch.detect import train_network
 
-    print("== Layer 2: document logs ==")
-    generate_doc_logs.main()
-    doc_rules.main()
-
-    if not docs_only:
-        print("\n== Layer 1: network ==")
-        from securewatch.preprocess import clean_network
-        from securewatch.detect import train_network
-
-        clean_network.main()
-        train_network.train_and_score()
+    clean_network.main()
+    train_network.train_and_score()
 
     print("\n== Correlate ==")
     build_alerts()
@@ -50,8 +44,4 @@ def run(docs_only: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--docs-only", action="store_true",
-                    help="skip the network layer (no CICIDS download needed)")
-    args = ap.parse_args()
-    run(docs_only=args.docs_only)
+    run()

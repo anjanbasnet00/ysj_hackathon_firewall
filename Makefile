@@ -1,9 +1,4 @@
-.PHONY: setup sample docs pipeline dashboard clean
-
-# generate a realistic CICIDS-shaped sample so the network layer works
-# without the 225MB download (swap in real CSVs in data/raw/ any time)
-sample:
-	PYTHONPATH=src python scripts/make_sample_cicids.py
+.PHONY: setup pipeline dashboard clean
 
 # one-time: create venv and install deps
 setup:
@@ -11,15 +6,12 @@ setup:
 	. .venv/bin/activate && pip install -U pip && pip install -r requirements.txt
 	@echo "Activate with: source .venv/bin/activate"
 
-# generate + score document logs only (NO dataset download needed)
-docs:
-	PYTHONPATH=src python -m securewatch.pipeline --docs-only
-
-# full pipeline (needs CICIDS 2017 CSVs in data/raw/)
+# network layer: clean + train + score real CICIDS 2017 CSVs in data/raw/,
+# then build the alert feed for the LIVE replay + Overview tabs.
 pipeline:
 	PYTHONPATH=src python -m securewatch.pipeline
 
-# launch the dashboard
+# launch the dashboard (network replay + live Google Drive document layer)
 dashboard:
 	PYTHONPATH=src streamlit run dashboard/app.py
 

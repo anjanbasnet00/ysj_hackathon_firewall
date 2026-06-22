@@ -7,4 +7,8 @@ numpy>=1.26
 scipy>=1.13
 pyarrow>=17.0      # fast parquet read/write for the data contract
 joblib>=1.4        # save/load the trained Isolation Forest (.pkl)
-faker>=30.0        # realistic users / IPs / filenames in synthetic doc logs
+
+# live Google Drive document layer (real activity feed, replaces synthetic logs)
+google-api-python-client>=2.140
+google-auth-oauthlib>=1.2
+google-auth-httplib2>=0.2

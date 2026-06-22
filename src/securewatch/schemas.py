@@ -32,25 +32,24 @@ NETWORK_SCORE_COLUMNS = [
 ]
 
 # ---------------------------------------------------------------------------
-# Layer 2 — Document access events (fully synthetic — you generate these)
-# Written to: data/processed/document_events.parquet
+# Layer 2 — Document access events (LIVE Google Drive activity feed)
+# Produced in-memory by securewatch.ingest.gdrive; the dashboard's Live Drive
+# tab scores it in real time. department/file_sensitivity are placeholders on a
+# personal account, so detection is behaviour-only (off-hours / bulk / large).
 # ---------------------------------------------------------------------------
 DOC_EVENT_COLUMNS = [
-    "timestamp",         # datetime
-    "user_id",           # str   e.g. "u023"
-    "user_name",         # str
-    "department",        # str   e.g. Finance / Engineering / HR
-    "role",              # str   e.g. analyst / manager / admin
-    "file_id",           # str
-    "file_path",         # str
-    "file_sensitivity",  # str   public / internal / confidential / restricted
-    "action",            # str   view / download / edit / delete
-    "bytes",             # int   size moved
-    "ip_address",        # str
+    "timestamp",         # datetime — when the Drive activity happened
+    "user_id",           # str   acting account email
+    "user_name",         # str   acting account display name
+    "department",        # str   placeholder ("Drive") on a personal account
+    "role",              # str   placeholder ("user")
+    "file_id",           # str   Drive file id
+    "file_path",         # str   Drive file name/path
+    "file_sensitivity",  # str   placeholder ("unknown") on a personal account
+    "action",            # str   create / edit / move / rename / delete / comment
+    "bytes",             # int   file size (0 for native Docs/Sheets)
+    "ip_address",        # str   unavailable from Drive Activity API ("")
     "hour",              # int   0-23 (handy for off-hours rules)
-    # ground-truth labels — for demo/eval, NOT used by unsupervised detection
-    "is_anomaly",        # int   1 if this event was injected as malicious
-    "anomaly_type",      # str   none / off_hours / bulk_download / out_of_scope / exfiltration
 ]
 
 # After behavioural scoring (security analyst rules + optional model):

@@ -6,9 +6,16 @@ models/*.pkl
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
+# google drive oauth secrets — NEVER commit
+credentials.json
+token.json
+
 # python
 .venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .DS_Store
+
+# local env
+.env

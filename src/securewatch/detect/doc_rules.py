@@ -26,7 +26,29 @@ def _severity(score: float) -> str:
     return "LOW"
 
 
-def score(df: pd.DataFrame) -> pd.DataFrame:
+def score(
+    df: pd.DataFrame,
+    *,
+    check_department: bool = True,
+    check_sensitivity: bool = True,
+    large_bytes: float | None = None,
+    bulk_threshold: int = 20,
+    bulk_window: str = "10min",
+    bulk_actions: tuple[str, ...] | None = ("download",),
+) -> pd.DataFrame:
+    """Behavioural risk scoring for document/Drive events.
+
+    The defaults match the original batch behaviour. The live Google Drive layer
+    passes tuned values (see config.C.live_*) and disables the department /
+    sensitivity rules, since a personal Drive account has no such metadata:
+
+        check_department/check_sensitivity : skip rules that need that metadata
+        large_bytes      : absolute byte threshold for "large transfer"
+                           (None -> top-2% quantile, the batch default)
+        bulk_threshold   : N actions by a user within bulk_window -> burst
+        bulk_window      : pandas offset alias for the burst window
+        bulk_actions     : which actions count toward a burst (None -> all)
+    """
     df = df.copy()
     risk = pd.Series(0.0, index=df.index)
     reasons = [[] for _ in range(len(df))]
@@ -39,31 +61,35 @@ def score(df: pd.DataFrame) -> pd.DataFrame:
     # 1. off-hours access (before 7am / after 8pm)
     bump((df["hour"] < 7) | (df["hour"] >= 20), 30, "off-hours access")
 
-    # 2. accessing files outside own department
-    out_scope = df["file_path"].str.split("/").str[1].str.lower() != df["department"].str.lower()
-    bump(out_scope, 20, "file outside user's department")
+    # 2. accessing files outside own department (needs department metadata)
+    if check_department:
+        out_scope = df["file_path"].str.split("/").str[1].str.lower() != df["department"].str.lower()
+        bump(out_scope.fillna(False), 20, "file outside user's department")
 
-    # 3. touching restricted/confidential files
-    bump(df["file_sensitivity"].isin(["restricted", "confidential"]), 15,
-         "sensitive file accessed")
+    # 3. touching restricted/confidential files (needs sensitivity metadata)
+    if check_sensitivity:
+        bump(df["file_sensitivity"].isin(["restricted", "confidential"]), 15,
+             "sensitive file accessed")
 
-    # 4. large transfer (top 2% of bytes)
-    big = df["bytes"] > df["bytes"].quantile(0.98)
-    bump(big, 25, "unusually large transfer")
+    # 4. large transfer (absolute threshold if given, else top 2% of bytes)
+    threshold = large_bytes if large_bytes is not None else df["bytes"].quantile(0.98)
+    bump(df["bytes"] > threshold, 25, "unusually large transfer")
 
-    # 5. bulk activity: many downloads by same user in a short window
-    downloads = df[df["action"] == "download"].copy()
-    if len(downloads):
-        downloads["bucket"] = downloads["timestamp"].dt.floor("10min")
-        burst = (downloads.groupby(["user_id", "bucket"]).size()
+    # 5. bulk activity: many qualifying actions by same user in a short window
+    acts = df if bulk_actions is None else df[df["action"].isin(bulk_actions)]
+    acts = acts.copy()
+    if len(acts):
+        acts["bucket"] = acts["timestamp"].dt.floor(bulk_window)
+        burst = (acts.groupby(["user_id", "bucket"]).size()
                  .rename("cnt").reset_index())
-        hot = burst[burst["cnt"] >= 20][["user_id", "bucket"]]
+        hot = burst[burst["cnt"] >= bulk_threshold][["user_id", "bucket"]]
         if len(hot):
-            dl = df["action"].eq("download")
-            buckets = df["timestamp"].dt.floor("10min")
+            in_scope = (pd.Series(True, index=df.index) if bulk_actions is None
+                        else df["action"].isin(bulk_actions))
+            buckets = df["timestamp"].dt.floor(bulk_window)
             key = pd.MultiIndex.from_arrays([df["user_id"], buckets])
             hot_key = pd.MultiIndex.from_frame(hot)
-            bump(dl & key.isin(hot_key), 35, "bulk download burst")
+            bump(in_scope & key.isin(hot_key), 35, "bulk activity burst")
 
     risk = risk.clip(0, 100)
     df["risk_score"] = risk
