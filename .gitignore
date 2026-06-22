@@ -1,0 +1,14 @@
+# data + models are big / generated — never commit
+data/raw/*
+data/interim/*
+data/processed/*
+models/*.pkl
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store

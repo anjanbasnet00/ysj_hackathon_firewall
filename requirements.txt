@@ -1,0 +1,10 @@
+# SecureWatch — pinned to what the brief lists
+streamlit>=1.40
+plotly>=5.24
+scikit-learn>=1.5
+pandas>=2.2
+numpy>=1.26
+scipy>=1.13
+pyarrow>=17.0      # fast parquet read/write for the data contract
+joblib>=1.4        # save/load the trained Isolation Forest (.pkl)
+faker>=30.0        # realistic users / IPs / filenames in synthetic doc logs
